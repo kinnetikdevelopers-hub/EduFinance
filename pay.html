@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pay School Fees — EduFinance</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Lato, sans-serif;
+      background: linear-gradient(135deg, #1a3c6e 0%, #0f2548 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 18px;
+      padding: 36px 32px;
+      max-width: 420px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+    }
+    .logo-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .logo-icon {
+      width: 48px; height: 48px;
+      background: #1a3c6e;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    h1 { font-family: 'Playfair Display', serif; font-size: 22px; color: #1a3c6e; }
+    .sub { font-size: 13px; color: #8a97aa; margin-top: 3px; }
+
+    .info-box {
+      background: #f0f5ff;
+      border: 1px solid #c7d9f7;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 24px;
+    }
+    .info-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13.5px; }
+    .info-row span { color: #6b7280; }
+    .info-row strong { color: #1a3c6e; }
+    .amount-big { font-size: 28px; font-weight: 900; color: #1a3c6e; text-align: center; margin: 8px 0 16px; }
+
+    label { display: block; font-size: 13px; font-weight: 700; color: #374151; margin-bottom: 5px; }
+    input {
+      width: 100%; border: 1.5px solid #d1d5db; border-radius: 8px;
+      padding: 10px 14px; font-size: 14px; font-family: inherit;
+      outline: none; transition: border-color .2s;
+    }
+    input:focus { border-color: #1a3c6e; }
+    .fg { margin-bottom: 16px; }
+    .hint { font-size: 11.5px; color: #9ca3af; margin-top: 4px; }
+
+    button {
+      width: 100%; padding: 13px; border: none; border-radius: 10px;
+      font-size: 15px; font-weight: 700; font-family: inherit;
+      cursor: pointer; transition: opacity .2s;
+    }
+    button:hover { opacity: .9; }
+    #pay-btn {
+      background: #16a34a; color: #fff;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    #pay-btn:disabled { background: #9ca3af; cursor: not-allowed; opacity: 1; }
+
+    .status-box {
+      display: none;
+      border-radius: 10px;
+      padding: 16px;
+      text-align: center;
+      margin-top: 16px;
+      font-size: 13.5px;
+      font-weight: 700;
+    }
+    .status-box.pending  { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+    .status-box.success  { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+    .status-box.failed   { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2.5px solid rgba(255,255,255,0.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .footer { text-align: center; font-size: 11px; color: #9ca3af; margin-top: 20px; }
+    .mpesa-green { color: #16a34a; font-weight: 900; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="logo-row">
+    <div class="logo-icon">
+      <svg width="24" height="24" fill="none" viewBox="0 0 24 24">
+        <path d="M12 3L2 8l10 5 10-5-10-5z" fill="#fff" opacity=".9"/>
+        <path d="M2 13l10 5 10-5" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div>
+      <h1 id="school-name">School Fees Payment</h1>
+      <div class="sub">Secure M-Pesa payment portal</div>
+    </div>
+  </div>
+
+  <div class="info-box">
+    <div class="info-row"><span>Student</span><strong id="student-name">Loading…</strong></div>
+    <div class="info-row"><span>Term</span><strong id="term-name">—</strong></div>
+    <div class="info-row"><span>Balance due</span><strong id="balance-due" style="color:#dc2626">—</strong></div>
+  </div>
+
+  <div class="amount-big" id="amount-display">KSh —</div>
+
+  <div class="fg">
+    <label for="phone-input">M-Pesa Phone Number</label>
+    <input type="tel" id="phone-input" placeholder="e.g. 0712345678" maxlength="13">
+    <div class="hint">Enter the M-Pesa registered number. You'll get a PIN prompt.</div>
+  </div>
+
+  <div class="fg">
+    <label for="amount-input">Amount to pay (KSh)</label>
+    <input type="number" id="amount-input" placeholder="Enter amount" min="1">
+    <div class="hint">You may pay a partial amount.</div>
+  </div>
+
+  <button id="pay-btn" onclick="initiatePayment()">
+    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+      <rect x="2" y="5" width="20" height="14" rx="2"/>
+      <path d="M2 10h20"/>
+    </svg>
+    Pay via M-Pesa
+  </button>
+
+  <div class="status-box" id="status-box"></div>
+
+  <div class="footer">
+    Powered by <span class="mpesa-green">M-Pesa</span> &amp; EduFinance · Payments are secure and encrypted
+  </div>
+</div>
+
+<script>
+  // ── Config ──────────────────────────────────────────────────
+  const SB  = 'https://zlaplsbmoxtxijgnmgcq.supabase.co';
+  const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpsYXBsc2Jtb3h0eGlqZ25tZ2NxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1MzQ4OTIsImV4cCI6MjA5NTExMDg5Mn0.vnHc0kghzF0uWoS_pOxhs4Vnnvei4dAfH32WcsKwnEM';
+
+  let _feeId = null;
+  let _checkoutRequestId = null;
+  let _pollInterval = null;
+
+  // ── Boot: read URL params and load fee details ───────────────
+  (async () => {
+    const params = new URLSearchParams(window.location.search);
+    _feeId = params.get('fee');
+    if (!_feeId) {
+      showStatus('Invalid payment link. Please contact the school.', 'failed');
+      return;
+    }
+
+    try {
+      const res = await fetch(
+        `${SB}/rest/v1/ef_student_fees?id=eq.${_feeId}&select=*,ef_students(full_name,parent_phone,ef_grades(name)),ef_terms(name)`,
+        { headers: { 'apikey': KEY } }
+      );
+      const [fee] = await res.json();
+      if (!fee) throw new Error('Fee record not found');
+
+      const balance = fee.expected - fee.paid;
+      document.getElementById('student-name').textContent = fee.ef_students?.full_name || '—';
+      document.getElementById('term-name').textContent    = fee.ef_terms?.name || '—';
+      document.getElementById('balance-due').textContent  = `KSh ${fmt(balance)}`;
+      document.getElementById('amount-display').textContent = `KSh ${fmt(balance)}`;
+      document.getElementById('amount-input').value = balance;
+
+      // Pre-fill phone if available
+      const phone = fee.ef_students?.parent_phone || '';
+      if (phone) document.getElementById('phone-input').value = phone.replace(/^254/, '0');
+
+      // Pre-fill school name
+      const settingsRes = await fetch(`${SB}/rest/v1/ef_settings?select=school_name&limit=1`, { headers: { 'apikey': KEY } });
+      const [settings] = await settingsRes.json();
+      if (settings?.school_name) document.getElementById('school-name').textContent = settings.school_name;
+
+    } catch(e) {
+      showStatus('Could not load fee details. Check your link.', 'failed');
+    }
+  })();
+
+  // ── Initiate STK Push ────────────────────────────────────────
+  async function initiatePayment() {
+    const phone  = document.getElementById('phone-input').value.trim();
+    const amount = parseFloat(document.getElementById('amount-input').value);
+
+    if (!phone) { showStatus('Please enter your M-Pesa phone number.', 'failed'); return; }
+    if (!amount || amount < 1) { showStatus('Please enter a valid amount.', 'failed'); return; }
+
+    const btn = document.getElementById('pay-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Sending prompt…';
+    showStatus('⏳ Sending M-Pesa payment request to your phone…', 'pending');
+
+    try {
+      const res = await fetch(`${SB}/functions/v1/stk-push`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': KEY },
+        body: JSON.stringify({ phone, amount, fee_id: _feeId, account_ref: 'FEES', description: 'School fee payment' }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Request failed');
+
+      _checkoutRequestId = data.CheckoutRequestID;
+      showStatus('📱 Check your phone and enter your M-Pesa PIN to complete payment.', 'pending');
+      btn.innerHTML = '<span class="spinner"></span> Waiting for payment…';
+
+      // Start polling
+      startPolling();
+
+    } catch(e) {
+      showStatus('Error: ' + e.message, 'failed');
+      resetBtn();
+    }
+  }
+
+  // ── Poll for payment confirmation ────────────────────────────
+  function startPolling() {
+    let attempts = 0;
+    _pollInterval = setInterval(async () => {
+      attempts++;
+      try {
+        const res = await fetch(
+          `${SB}/rest/v1/ef_mpesa_transactions?checkout_request_id=eq.${_checkoutRequestId}&select=status,result_desc,mpesa_receipt_number`,
+          { headers: { 'apikey': KEY } }
+        );
+        const [txn] = await res.json();
+
+        if (txn?.status === 'success') {
+          clearInterval(_pollInterval);
+          showStatus(`✅ Payment confirmed!\nReceipt: ${txn.mpesa_receipt_number}\n\nThank you — your fees have been updated.`, 'success');
+          document.getElementById('pay-btn').style.display = 'none';
+        } else if (txn?.status === 'failed') {
+          clearInterval(_pollInterval);
+          showStatus(`❌ Payment failed: ${txn.result_desc || 'Cancelled or timed out.'}`, 'failed');
+          resetBtn();
+        } else if (attempts >= 24) { // 2 min
+          clearInterval(_pollInterval);
+          showStatus('Payment is taking longer than usual. If you completed the payment, it will be confirmed shortly.', 'pending');
+          resetBtn();
+        }
+      } catch(e) { /* keep polling */ }
+    }, 5000);
+  }
+
+  function showStatus(msg, type) {
+    const box = document.getElementById('status-box');
+    box.textContent = msg;
+    box.className = 'status-box ' + type;
+    box.style.display = 'block';
+  }
+
+  function resetBtn() {
+    const btn = document.getElementById('pay-btn');
+    btn.disabled = false;
+    btn.innerHTML = `<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg> Pay via M-Pesa`;
+  }
+
+  function fmt(n) {
+    if (!n && n !== 0) return '0';
+    return Math.round(n).toLocaleString('en-KE');
+  }
+</script>
+</body>
+</html>

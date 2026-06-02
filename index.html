@@ -1541,7 +1541,7 @@ async function showReceipt(feeId){
       <div class="receipt-section-label">Payment details</div>
       ${(payments||[]).map(p=>`<div class="receipt-row"><span>${new Date(p.paid_at).toLocaleDateString('en-KE')} · ${(p.method||'cash').toUpperCase()}${p.mpesa_code?' · '+p.mpesa_code:''}</span><strong>KSh ${fmt(p.amount)}</strong></div>`).join('')}
       <div class="receipt-total"><span>Total paid</span><span>KSh ${fmt(rec.paid)}</span></div>
-      <div class="receipt-balance-note" style="color:${bal>0?'#991b1b':'#166534'}">${bal>0?`Outstanding: KSh ${fmt(bal)}`:'✓ Fully paid'}</div>
+      <div class="receipt-balance-note" style="color:${bal>0?'#991b1b':'#166534'}">${bal > 0 ? 'Outstanding: KSh ' + fmt(bal) : '✓ Fully paid'}</div>
       <div class="receipt-footer">This is an official receipt from ${SETTINGS.school_name||'School'}.<br>Generated: ${new Date().toLocaleString('en-KE')} · School Finance System</div>
     </div>`;
   openM('m-receipt');
@@ -1554,4 +1554,6 @@ function printReceipt(){
   <!-- Application logic -->
   <script src="src/app.js"></script>
 </body>
-</html>
+</html>`);
+  w.document.close();
+}

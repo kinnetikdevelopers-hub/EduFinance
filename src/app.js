@@ -599,3 +599,158 @@ document.addEventListener('keydown', e => {
     await bootApp();
   }
 })();
+// ══════════════════════════════════════════════════════════════
+// app-mpesa-addon.js
+// Paste this at the BOTTOM of src/app.js
+// Requires: SB and KEY constants already defined in index.html
+// ══════════════════════════════════════════════════════════════
+
+// ── STK Push: trigger M-Pesa prompt on parent's phone ─────────
+async function triggerSTKPush(feeId, studentName, phone, amount) {
+  if (!phone) { toast('No phone number for this parent', 'error'); return; }
+  if (!amount || amount <= 0) { toast('No outstanding balance', 'info'); return; }
+
+  const normalised = phone.replace(/^\+/, '').replace(/^0/, '254');
+  const accountRef = (SETTINGS.account_prefix || 'STU') + '-' + feeId.slice(-6).toUpperCase();
+  const desc = `Fees - ${studentName}`;
+
+  toast(`Sending M-Pesa prompt to ${normalised}…`, 'info');
+
+  try {
+    const res = await fetch(`${SB}/functions/v1/stk-push`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': KEY,
+        'Authorization': 'Bearer ' + AUTH,
+      },
+      body: JSON.stringify({
+        phone:       normalised,
+        amount:      Math.round(amount),
+        fee_id:      feeId,
+        account_ref: accountRef,
+        description: desc,
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || 'STK push failed');
+
+    toast(`✓ M-Pesa prompt sent! Ask parent to check their phone.`, 'success');
+
+    // Poll for confirmation for up to 60 seconds
+    pollPaymentStatus(data.CheckoutRequestID, feeId);
+
+  } catch (e) {
+    toast('M-Pesa error: ' + e.message, 'error');
+  }
+}
+
+// ── Poll transaction status after STK push ────────────────────
+async function pollPaymentStatus(checkoutRequestId, feeId) {
+  const maxAttempts = 12; // 12 × 5s = 60 seconds
+  let attempts = 0;
+
+  const interval = setInterval(async () => {
+    attempts++;
+    try {
+      const { data } = await supabaseQuery(
+        `/rest/v1/ef_mpesa_transactions?checkout_request_id=eq.${checkoutRequestId}&select=status,result_desc,mpesa_receipt_number`
+      );
+      const txn = data?.[0];
+
+      if (txn?.status === 'success') {
+        clearInterval(interval);
+        toast(`✓ Payment confirmed! Receipt: ${txn.mpesa_receipt_number}`, 'success');
+        // Refresh whichever panel is open
+        if (_curTermId) {
+          if (document.getElementById('ip-fee-tracking').classList.contains('open')) await loadFTData(_curTermId);
+          if (document.getElementById('ip-fee-payments').classList.contains('open')) await loadFPData(_curTermId);
+        }
+      } else if (txn?.status === 'failed') {
+        clearInterval(interval);
+        toast(`Payment failed: ${txn.result_desc || 'Cancelled by user'}`, 'error');
+      } else if (attempts >= maxAttempts) {
+        clearInterval(interval);
+        // Don't show error — payment may still come through via callback
+      }
+    } catch (e) {
+      if (attempts >= maxAttempts) clearInterval(interval);
+    }
+  }, 5000);
+}
+
+// Helper: raw fetch to Supabase REST (returns {data, error})
+async function supabaseQuery(path) {
+  const res = await fetch(SB + path, {
+    headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + AUTH }
+  });
+  const data = await res.json();
+  return { data, error: res.ok ? null : data };
+}
+
+// ── Copy pay link to clipboard ─────────────────────────────────
+function copyPayLink(feeId, studentName) {
+  const base = SETTINGS.pay_url || window.location.origin + '/pay.html';
+  const url  = `${base}?fee=${feeId}&name=${encodeURIComponent(studentName)}`;
+  navigator.clipboard.writeText(url).then(() => {
+    toast('Payment link copied!', 'success');
+  }).catch(() => {
+    prompt('Copy this payment link:', url);
+  });
+}
+
+// ── Share via WhatsApp ────────────────────────────────────────
+function shareWhatsApp(feeId, studentName, balance, phone) {
+  const base    = SETTINGS.pay_url || window.location.origin + '/pay.html';
+  const payLink = `${base}?fee=${feeId}&name=${encodeURIComponent(studentName)}`;
+  const paybill = SETTINGS.paybill || 'XXXXXX';
+  const tname   = TERMS.find(t => t.id === _curTermId)?.name || 'this term';
+
+  const message =
+    `Dear Parent,\n\nFees balance for *${studentName}* is *KSh ${fmt(balance)}* for ${tname}.\n\n` +
+    `Pay securely via this link:\n${payLink}\n\n` +
+    `Or pay directly:\nM-Pesa Paybill: *${paybill}*\nAccount: STU-${feeId.slice(-6).toUpperCase()}\n\nThank you.`;
+
+  const normalised = (phone || '').replace(/^\+/, '').replace(/^0/, '254');
+  const waUrl = normalised
+    ? `https://wa.me/${normalised}?text=${encodeURIComponent(message)}`
+    : `https://wa.me/?text=${encodeURIComponent(message)}`;
+
+  window.open(waUrl, '_blank');
+}
+
+// ── M-Pesa transaction history modal ─────────────────────────
+async function showMpesaHistory(feeId) {
+  try {
+    const txns = await api(
+      `/rest/v1/ef_mpesa_transactions?fee_id=eq.${feeId}&select=*&order=created_at.desc`
+    );
+    if (!txns || !txns.length) { toast('No M-Pesa transactions for this student', 'info'); return; }
+
+    const rows = txns.map(t => `
+      <tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:6px">${t.created_at ? new Date(t.created_at).toLocaleString('en-KE') : '—'}</td>
+        <td style="padding:6px"><span class="badge ${t.status === 'success' ? 'bg-green' : t.status === 'failed' ? 'bg-red' : 'bg-amber'}">${t.status}</span></td>
+        <td style="padding:6px mono">KSh ${fmt(t.amount)}</td>
+        <td style="padding:6px">${t.mpesa_receipt_number || '—'}</td>
+        <td style="padding:6px text-sm" style="color:var(--text3)">${t.result_desc || ''}</td>
+      </tr>`).join('');
+
+    document.getElementById('conf-title').textContent = 'M-Pesa Transaction History';
+    document.getElementById('conf-msg').innerHTML = `
+      <table style="width:100%;font-size:12.5px;border-collapse:collapse">
+        <thead><tr style="border-bottom:2px solid var(--border)">
+          <th style="padding:5px 6px;text-align:left">Date</th>
+          <th style="padding:5px 6px;text-align:left">Status</th>
+          <th style="padding:5px 6px;text-align:left">Amount</th>
+          <th style="padding:5px 6px;text-align:left">Receipt</th>
+          <th style="padding:5px 6px;text-align:left">Note</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    document.getElementById('conf-ok').textContent = 'Close';
+    _confirmCb = () => { document.getElementById('conf-ok').textContent = 'Confirm'; };
+    openM('m-confirm');
+  } catch(e) { toast('Failed to load history', 'error'); }
+}
