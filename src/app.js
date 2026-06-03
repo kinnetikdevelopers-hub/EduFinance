@@ -772,7 +772,7 @@ async function loadTemplates(){
       _tplId=rows[0].id;
     }
   }catch(e){}
-  switchTemplateTab('global',document.querySelector('.sub-tab'));
+  switchTemplateTab('global',document.querySelector('#page-templates .sub-tab'));
 }
 let _tplId=null;
 
