@@ -497,6 +497,7 @@ function nav(page) {
   if (page === 'history') loadHistory();
   if (page === 'settings') { loadUsers(); loadCats(); }
 }
+  if (page === 'templates') loadTemplates();
 
 function navToggle(group) {
   const children = document.getElementById('children-' + group);
@@ -753,4 +754,240 @@ async function showMpesaHistory(feeId) {
     _confirmCb = () => { document.getElementById('conf-ok').textContent = 'Confirm'; };
     openM('m-confirm');
   } catch(e) { toast('Failed to load history', 'error'); }
+}
+
+// ══ TEMPLATES ═══════════════════════════════════════
+let _tpl = {global:{},receipt:{},invoice:{},feeStatement:{},expense:{},general:{}};
+
+async function loadTemplates(){
+  try{
+    const rows=await api('/rest/v1/ef_templates?select=*&limit=1');
+    if(rows&&rows.length){
+      _tpl.global=rows[0].global||{};
+      _tpl.receipt=rows[0].receipt||{};
+      _tpl.invoice=rows[0].invoice||{};
+      _tpl.feeStatement=rows[0].fee_statement||{};
+      _tpl.expense=rows[0].expense_report||{};
+      _tpl.general=rows[0].general_report||{};
+      _tplId=rows[0].id;
+    }
+  }catch(e){}
+  switchTemplateTab('global',document.querySelector('.sub-tab'));
+}
+let _tplId=null;
+
+function switchTemplateTab(tab, el){
+  document.querySelectorAll('#page-templates .sub-tab').forEach(t=>t.classList.remove('active'));
+  if(el)el.classList.add('active');
+  const c=document.getElementById('tpl-content');
+  if(tab==='global') c.innerHTML=renderGlobalTab();
+  else if(tab==='receipt') c.innerHTML=renderDocTab('receipt','Receipt',['Student Name','Admission No','Grade & Stream','Term','Amount Paid','Balance','M-Pesa Ref','Payer Name','Payer Phone','Date','Cashier']);
+  else if(tab==='invoice') c.innerHTML=renderDocTab('invoice','Invoice',['Student Name','Admission No','Grade & Stream','Term','Fee Breakdown','Total Expected','Amount Paid','Balance Due','Due Date']);
+  else if(tab==='fee-statement') c.innerHTML=renderDocTab('feeStatement','Fee Statement',['Student Name','Admission No','Grade','All Terms History','Per Term Summary','Overall Balance']);
+  else if(tab==='expense') c.innerHTML=renderDocTab('expense','Expense Report',['Date Range','Category','Description','Amount','Recorded By','Category Totals','Grand Total']);
+  else if(tab==='general') c.innerHTML=renderDocTab('general','General Report',['Title','Date Range','Summary Metrics','Data Table','Notes']);
+}
+
+function renderGlobalTab(){
+  const g=_tpl.global;
+  return `
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:20px">
+    <div class="card">
+      <div class="card-header"><div class="card-title">School Identity</div></div>
+      <div class="card-body" style="display:flex;flex-direction:column;gap:14px">
+        <div class="fg"><label class="fl">School Name</label><input class="input w100" id="tpl-school-name" value="${g.schoolName||''}" placeholder="e.g. Young Muslim Association School"></div>
+        <div class="fg"><label class="fl">Address</label><input class="input w100" id="tpl-address" value="${g.address||''}" placeholder="e.g. P.O Box 1234, Nairobi"></div>
+        <div class="fg"><label class="fl">Phone</label><input class="input w100" id="tpl-phone" value="${g.phone||''}" placeholder="e.g. +254 700 000000"></div>
+        <div class="fg"><label class="fl">Email</label><input class="input w100" id="tpl-email" value="${g.email||''}" placeholder="e.g. info@school.ac.ke"></div>
+        <div class="fg"><label class="fl">Footer Message</label><input class="input w100" id="tpl-footer" value="${g.footer||''}" placeholder="e.g. Thank you for your payment"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">Appearance</div></div>
+      <div class="card-body" style="display:flex;flex-direction:column;gap:14px">
+        <div class="fg"><label class="fl">Primary Color</label><div class="flex ac g8"><input type="color" id="tpl-color" value="${g.color||'#1a3c6e'}" style="width:44px;height:36px;border:1px solid var(--border2);border-radius:6px;cursor:pointer;padding:2px"><span class="c3 text-sm">Used in headers and accents</span></div></div>
+        <div class="fg"><label class="fl">Logo</label>
+          ${g.logo?`<div class="flex ac g8"><img src="${g.logo}" style="height:52px;border:1px solid var(--border);border-radius:6px;padding:4px"><button class="btn btn-danger btn-xs" onclick="removeLogo()">Remove</button></div>`:''}
+          <input type="file" id="tpl-logo" accept="image/*" style="margin-top:6px" onchange="previewLogo(this)">
+          <div id="tpl-logo-preview"></div>
+        </div>
+        <div class="fg"><label class="fl">Signature/Stamp Area</label>
+          <label class="flex ac g8" style="cursor:pointer">
+            <input type="checkbox" id="tpl-stamp" ${g.showStamp?'checked':''}>
+            <span class="text-sm">Show signature and stamp area on documents</span>
+          </label>
+        </div>
+        <div class="fg"><label class="fl">Watermark Text</label><input class="input w100" id="tpl-watermark" value="${g.watermark||''}" placeholder="e.g. OFFICIAL or leave blank"></div>
+      </div>
+    </div>
+  </div>
+  <div style="margin-top:16px;display:flex;justify-content:flex-end">
+    <button class="btn btn-primary" onclick="saveTemplates()">
+      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      Save & Apply
+    </button>
+  </div>`;
+}
+
+function renderDocTab(key, label, fields){
+  const d=_tpl[key]||{};
+  const layout=d.layout||'A';
+  const hidden=d.hidden||[];
+  return `
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:20px">
+    <div>
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header"><div class="card-title">Layout</div></div>
+        <div class="card-body">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+            ${['A','B','C'].map(l=>`
+            <div onclick="selectLayout('${key}','${l}',this)" style="border:2px solid ${layout===l?'var(--navy)':'var(--border)'};border-radius:8px;padding:12px;cursor:pointer;text-align:center;transition:all .15s" id="layout-opt-${key}-${l}">
+              <div style="font-weight:700;color:${layout===l?'var(--navy)':'var(--text2)'}">Layout ${l}</div>
+              <div class="text-xs c3" style="margin-top:4px">${l==='A'?'Classic centered':l==='B'?'Modern bold':'Minimal B&W'}</div>
+              <div style="margin-top:8px;height:60px;background:var(--surface2);border-radius:4px;display:flex;flex-direction:column;gap:3px;padding:6px;overflow:hidden">
+                ${l==='A'?'<div style="height:6px;background:#1a3c6e;border-radius:2px;width:60%;margin:0 auto"></div><div style="height:3px;background:var(--border2);border-radius:2px;margin-top:3px"></div><div style="height:3px;background:var(--border2);border-radius:2px"></div><div style="height:3px;background:var(--border2);border-radius:2px;width:80%"></div>':l==='B'?'<div style="height:12px;background:#1a3c6e;border-radius:2px;width:100%"></div><div style="height:3px;background:var(--border2);border-radius:2px;margin-top:4px"></div><div style="height:3px;background:var(--border2);border-radius:2px"></div>':'<div style="height:3px;background:#333;border-radius:2px;width:40%"></div><div style="height:3px;background:var(--border2);border-radius:2px;margin-top:4px"></div><div style="height:3px;background:var(--border2);border-radius:2px"></div>'}
+              </div>
+            </div>`).join('')}
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Fields to Show</div></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:8px">
+          ${fields.map(f=>`
+          <label class="flex ac g8" style="cursor:pointer;padding:6px 0;border-bottom:1px solid var(--border)">
+            <input type="checkbox" class="tpl-field-cb" data-key="${key}" data-field="${f}" ${!hidden.includes(f)?'checked':''}>
+            <span style="font-size:13px">${f}</span>
+          </label>`).join('')}
+        </div>
+      </div>
+    </div>
+    <div class="card" style="position:sticky;top:24px">
+      <div class="card-header"><div class="card-title">Preview</div><span class="badge bg-blue">Sample</span></div>
+      <div class="card-body" id="tpl-preview-${key}" style="background:#f8f8f8;min-height:400px;font-size:12px">
+        ${renderDocPreview(key,label,fields,layout,hidden)}
+      </div>
+    </div>
+  </div>
+  <div style="margin-top:16px;display:flex;justify-content:flex-end">
+    <button class="btn btn-primary" onclick="saveTemplates()">
+      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      Save & Apply
+    </button>
+  </div>`;
+}
+
+function renderDocPreview(key,label,fields,layout,hidden){
+  const g=_tpl.global||{};
+  const color=g.color||'#1a3c6e';
+  const visibleFields=fields.filter(f=>!hidden.includes(f));
+  const schoolName=g.schoolName||'School Name';
+  const address=g.address||'P.O Box 1234, Nairobi';
+  if(layout==='A') return `
+    <div style="background:#fff;padding:20px;border-radius:4px;font-family:'Jost',sans-serif">
+      <div style="text-align:center;border-bottom:2px solid ${color};padding-bottom:10px;margin-bottom:10px">
+        <div style="font-size:15px;font-weight:800;color:${color}">${schoolName}</div>
+        <div style="font-size:10px;color:#666">${address}</div>
+        <div style="font-size:11px;font-weight:700;color:${color};margin-top:4px;text-transform:uppercase">${label}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
+        ${visibleFields.map(f=>`<div style="padding:3px 0;border-bottom:1px solid #f0f0f0"><span style="font-size:9px;color:#999;text-transform:uppercase">${f}</span><div style="font-size:11px;color:#333;font-weight:600">Sample Value</div></div>`).join('')}
+      </div>
+      ${g.showStamp?`<div style="margin-top:12px;display:flex;justify-content:flex-end"><div style="border:1px dashed #ccc;width:80px;height:40px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#aaa">Stamp/Sign</div></div>`:''}
+      ${g.footer?`<div style="text-align:center;margin-top:10px;font-size:9px;color:#aaa;border-top:1px dashed #ddd;padding-top:6px">${g.footer}</div>`:''}
+    </div>`;
+  if(layout==='B') return `
+    <div style="background:#fff;border-radius:4px;font-family:'Jost',sans-serif;overflow:hidden">
+      <div style="background:${color};padding:14px 20px;display:flex;justify-content:space-between;align-items:center">
+        <div><div style="font-size:14px;font-weight:800;color:#fff">${schoolName}</div><div style="font-size:9px;color:rgba(255,255,255,.7)">${address}</div></div>
+        <div style="font-size:12px;font-weight:700;color:#fff;text-transform:uppercase">${label}</div>
+      </div>
+      <div style="padding:16px">
+        ${visibleFields.map(f=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f0f0f0"><span style="font-size:10px;color:#666">${f}</span><span style="font-size:10px;font-weight:700;color:#333">Sample Value</span></div>`).join('')}
+        ${g.showStamp?`<div style="margin-top:12px;display:flex;justify-content:flex-end"><div style="border:1px dashed #ccc;width:80px;height:40px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#aaa">Stamp/Sign</div></div>`:''}
+        ${g.footer?`<div style="text-align:center;margin-top:10px;font-size:9px;color:#aaa;border-top:1px dashed #ddd;padding-top:6px">${g.footer}</div>`:''}
+      </div>
+    </div>`;
+  return `
+    <div style="background:#fff;padding:20px;border-radius:4px;font-family:'Jost',sans-serif">
+      <div style="border-bottom:1px solid #333;padding-bottom:8px;margin-bottom:10px;display:flex;justify-content:space-between">
+        <div><div style="font-size:13px;font-weight:800;color:#000">${schoolName}</div><div style="font-size:9px;color:#555">${address}</div></div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#000">${label}</div>
+      </div>
+      ${visibleFields.map(f=>`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #eee"><span style="font-size:10px;color:#444">${f}</span><span style="font-size:10px;color:#000">Sample Value</span></div>`).join('')}
+      ${g.showStamp?`<div style="margin-top:12px;display:flex;justify-content:flex-end"><div style="border:1px dashed #999;width:80px;height:40px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#aaa">Stamp/Sign</div></div>`:''}
+      ${g.footer?`<div style="text-align:center;margin-top:10px;font-size:9px;color:#888;border-top:1px dashed #ddd;padding-top:6px">${g.footer}</div>`:''}
+    </div>`;
+}
+
+function selectLayout(key,layout,el){
+  _tpl[key]=_tpl[key]||{};
+  _tpl[key].layout=layout;
+  ['A','B','C'].forEach(l=>{
+    const opt=document.getElementById(`layout-opt-${key}-${l}`);
+    if(opt){opt.style.borderColor=l===layout?'var(--navy)':'var(--border)';opt.querySelector('div').style.color=l===layout?'var(--navy)':'var(--text2)';}
+  });
+  updatePreview(key);
+}
+
+function updatePreview(key){
+  const labelMap={receipt:'Receipt',invoice:'Invoice',feeStatement:'Fee Statement',expense:'Expense Report',general:'General Report'};
+  const fieldsMap={
+    receipt:['Student Name','Admission No','Grade & Stream','Term','Amount Paid','Balance','M-Pesa Ref','Payer Name','Payer Phone','Date','Cashier'],
+    invoice:['Student Name','Admission No','Grade & Stream','Term','Fee Breakdown','Total Expected','Amount Paid','Balance Due','Due Date'],
+    feeStatement:['Student Name','Admission No','Grade','All Terms History','Per Term Summary','Overall Balance'],
+    expense:['Date Range','Category','Description','Amount','Recorded By','Category Totals','Grand Total'],
+    general:['Title','Date Range','Summary Metrics','Data Table','Notes']
+  };
+  const d=_tpl[key]||{};
+  const preview=document.getElementById(`tpl-preview-${key}`);
+  if(preview) preview.innerHTML=renderDocPreview(key,labelMap[key],fieldsMap[key],d.layout||'A',d.hidden||[]);
+}
+
+document.addEventListener('change',function(e){
+  if(e.target.classList.contains('tpl-field-cb')){
+    const key=e.target.dataset.key;
+    const field=e.target.dataset.field;
+    _tpl[key]=_tpl[key]||{};
+    _tpl[key].hidden=_tpl[key].hidden||[];
+    if(e.target.checked){_tpl[key].hidden=_tpl[key].hidden.filter(f=>f!==field);}
+    else{if(!_tpl[key].hidden.includes(field))_tpl[key].hidden.push(field);}
+    updatePreview(key);
+  }
+});
+
+function previewLogo(input){
+  const file=input.files[0]; if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    document.getElementById('tpl-logo-preview').innerHTML=`<img src="${e.target.result}" style="height:52px;margin-top:8px;border:1px solid var(--border);border-radius:6px;padding:4px">`;
+    _tpl.global._logoData=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeLogo(){
+  _tpl.global.logo=null;
+  _tpl.global._logoData=null;
+  renderGlobalTab();
+  switchTemplateTab('global',document.querySelector('#page-templates .sub-tab'));
+}
+
+async function saveTemplates(){
+  const g=_tpl.global;
+  g.schoolName=document.getElementById('tpl-school-name')?.value||g.schoolName;
+  g.address=document.getElementById('tpl-address')?.value||g.address;
+  g.phone=document.getElementById('tpl-phone')?.value||g.phone;
+  g.email=document.getElementById('tpl-email')?.value||g.email;
+  g.footer=document.getElementById('tpl-footer')?.value||g.footer;
+  g.color=document.getElementById('tpl-color')?.value||g.color;
+  g.watermark=document.getElementById('tpl-watermark')?.value||g.watermark;
+  g.showStamp=document.getElementById('tpl-stamp')?.checked||false;
+  if(_tpl.global._logoData) g.logo=_tpl.global._logoData;
+  const payload={global:g,receipt:_tpl.receipt,invoice:_tpl.invoice,fee_statement:_tpl.feeStatement,expense_report:_tpl.expense,general_report:_tpl.general};
+  try{
+    if(_tplId){await api(`/rest/v1/ef_templates?id=eq.${_tplId}`,'PATCH',payload);}
+    else{const [row]=await api('/rest/v1/ef_templates','POST',payload);_tplId=row.id;}
+    toast('Templates saved & applied','success');
+  }catch(e){toast('Failed to save: '+e.message,'error');}
 }
