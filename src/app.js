@@ -496,8 +496,9 @@ function nav(page) {
   }
   if (page === 'history') loadHistory();
   if (page === 'settings') { loadUsers(); loadCats(); }
-}
   if (page === 'templates') loadTemplates();
+}
+  
 
 function navToggle(group) {
   const children = document.getElementById('children-' + group);
