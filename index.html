@@ -931,8 +931,22 @@ async function updateGrade(){
   const streamsRaw=document.getElementById('eg-streams').value.trim();
   try{
     await api(`/rest/v1/ef_grades?id=eq.${id}`,'PATCH',{name,sort_order:order});
-    await api(`/rest/v1/ef_streams?grade_id=eq.${id}`,'DELETE');
-    if(streamsRaw){for(const s of streamsRaw.split(',').map(x=>x.trim()).filter(Boolean))await api('/rest/v1/ef_streams','POST',{grade_id:id,name:s});}
+    if(streamsRaw){
+      const newNames=streamsRaw.split(',').map(x=>x.trim()).filter(Boolean);
+      const existing=await api(`/rest/v1/ef_streams?grade_id=eq.${id}&order=name.asc`);
+      for(let i=0;i<newNames.length;i++){
+        if(existing[i]){
+          await api(`/rest/v1/ef_streams?id=eq.${existing[i].id}`,'PATCH',{name:newNames[i]});
+        }else{
+          await api('/rest/v1/ef_streams','POST',{grade_id:id,name:newNames[i]});
+        }
+      }
+      if(existing.length>newNames.length){
+        for(let i=newNames.length;i<existing.length;i++){
+          await api(`/rest/v1/ef_streams?id=eq.${existing[i].id}`,'DELETE');
+        }
+      }
+    }
     closeM('m-edit-grade');toast('Grade updated','success');
     await loadGrades();renderGradesTable();
   }catch(e){toast('Failed: '+e.message,'error');}
