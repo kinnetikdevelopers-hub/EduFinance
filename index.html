@@ -1081,15 +1081,15 @@ function renderHistoryTable(data){
   const tb=document.getElementById('hist-tbody');
   if(!data.length){tb.innerHTML='<tr><td colspan="6"><div class="empty"><div class="empty-t">No students in history</div><div class="empty-s">Students you archive will appear here</div></div></td></tr>';return;}
   const ini=n=>n?n.split(' ').slice(0,2).map(x=>x[0]).join('').toUpperCase():'?';
-  tb.innerHTML=data.map(s=>`<tr>
+  tb.innerHTML=data.map(s=>`<tr style="cursor:pointer" onclick="viewStudentHistory('${s.id}')">
     <td><div class="flex ac g8"><div class="av" style="background:var(--surface2);color:var(--text3)">${ini(s.full_name)}</div><div><div class="bold">${s.full_name}</div><div class="td-m">${s.parent_name||''}</div></div></div></td>
     <td class="td-m mono">${s.admission_no||'—'}</td>
     <td class="td-m">${s.ef_grades?.name||'—'}</td>
     <td><span class="badge bg-amber">${s.history_reason||s.status}</span></td>
     <td class="td-m">${s.history_date||'—'}</td>
     <td><div class="flex g8">
-      <button class="btn btn-ghost btn-xs" onclick="viewStudentHistory('${s.id}')">View history</button>
-      <button class="btn btn-danger btn-xs" onclick="permDeleteFromHistory('${s.id}','${s.full_name.replace(/'/g,"\\'")}')">Delete</button>
+      <button class="btn btn-success btn-xs" onclick="event.stopPropagation();restoreStudent('${s.id}')">Restore</button>
+      <button class="btn btn-danger btn-xs" onclick="event.stopPropagation();permDeleteFromHistory('${s.id}','${s.full_name.replace(/'/g,"\\'")}')">Delete</button>
     </div></td>
   </tr>`).join('');
 }
@@ -1135,6 +1135,16 @@ function permDeleteFromHistory(id,name){
   document.getElementById('del-stu-id').value=id;
   document.getElementById('del-stu-name').textContent=name;
   openM('m-confirm-perm');
+}
+
+  async function restoreStudent(id){
+  confirm2('Restore student','This will move the student back to the active students list.',async()=>{
+    try{
+      await api(`/rest/v1/ef_students?id=eq.${id}`,'PATCH',{status:'active',history_reason:null,history_notes:null,history_date:null});
+      toast('Student restored to active','success');
+      await loadHistory();
+    }catch(e){toast('Failed to restore student','error');}
+  });
 }
 
 // ══ TERMS ═════════════════════════════════════════
