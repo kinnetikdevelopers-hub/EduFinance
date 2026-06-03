@@ -943,10 +943,14 @@ async function updateGrade(){
       }
       if(existing.length>newNames.length){
         for(let i=newNames.length;i<existing.length;i++){
-          await api(`/rest/v1/ef_streams?id=eq.${existing[i].id}`,'DELETE');
+          const linked=await api(`/rest/v1/ef_students?stream_id=eq.${existing[i].id}&select=id`);
+          if(linked&&linked.length>0){
+            toast('Stream "'+existing[i].name+'" was kept — students are still assigned to it','info');
+          }else{
+            await api(`/rest/v1/ef_streams?id=eq.${existing[i].id}`,'DELETE');
+          }
         }
       }
-    }
     closeM('m-edit-grade');toast('Grade updated','success');
     await loadGrades();renderGradesTable();
   }catch(e){toast('Failed: '+e.message,'error');}
