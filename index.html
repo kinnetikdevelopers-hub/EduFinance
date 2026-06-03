@@ -1534,11 +1534,149 @@ function renderFTTable(){
       <td class="mono" style="color:var(--green-mid)">KSh ${fmt(r.paid)}</td>
       <td><div style="min-width:90px"><div class="flex ac jb mb8" style="margin-bottom:3px"><span class="mono text-sm bold" style="color:${bal>0?'var(--red-mid)':'var(--green-mid)'}">KSh ${fmt(bal)}</span></div><div class="prog"><div class="prog-fill" style="width:${pct}%;background:${bc}"></div></div></div></td>
       <td><span class="badge ${sc}">${r.status}</span></td>
-      <td><button class="btn btn-primary btn-xs" onclick="openPaymentModal('${r.id}','${r.ef_students?.full_name}',${r.expected},${r.paid})">Pay</button></td>
+      <td><div class="flex g8"><button class="btn btn-primary btn-xs" onclick="openPaymentModal('${r.id}','${r.ef_students?.full_name}',${r.expected},${r.paid})">Pay</button><button class="btn btn-ghost btn-xs" onclick="printInvoice('${r.id}')">Invoice</button></div></td>
     </tr>`;
   }).join('');
 }
 function filterFT(){renderFTTable();}
+
+async function printInvoice(feeId){
+  try{
+    const rows=await api(`/rest/v1/ef_student_fees?id=eq.${feeId}&select=*,ef_students(full_name,admission_no,parent_name,parent_phone,ef_grades(name),ef_streams(name)),ef_terms(name)`);
+    if(!rows||!rows.length){toast('Could not load invoice data','error');return;}
+    const r=rows[0];
+    const charges=await api(`/rest/v1/ef_grade_fees?term_id=eq.${r.term_id}&select=*`)||[];
+    const extraCharges=await api(`/rest/v1/ef_extra_charges?term_id=eq.${r.term_id}&select=*`)||[];
+    const allCharges=[...charges,...extraCharges];
+    const student=r.ef_students;
+    const term=r.ef_terms?.name||'—';
+    const grade=student?.ef_grades?.name||'—';
+    const stream=student?.ef_streams?.name||'';
+    const bal=r.expected-r.paid;
+    const logoUrl='https://cdn-icons-png.flaticon.com/512/2602/2602414.png';
+    const color='#1a3c6e';
+    const html=`<!DOCTYPE html>
+<html>
+<head>
+<title>Fee Invoice — ${student?.full_name||''}</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Jost',Arial,sans-serif;background:#fff;color:#1a2236;position:relative}
+  @import url('https://fonts.googleapis.com/css2?family=Jost:wght@400;600;700;800&display=swap');
+  .watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);opacity:0.045;z-index:0;pointer-events:none}
+  .watermark img{width:320px;height:320px;object-fit:contain;filter:grayscale(100%)}
+  .page{position:relative;z-index:1;max-width:750px;margin:0 auto;padding:40px}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+  .header-left{display:flex;align-items:center;gap:14px}
+  .header-left img{width:72px;height:72px;object-fit:contain}
+  .school-name{font-size:20px;font-weight:800;color:${color};line-height:1.2}
+  .school-sub{font-size:12px;color:#555;margin-top:3px;line-height:1.8}
+  .header-right{text-align:right;font-size:12px;color:#555;line-height:1.8}
+  .divider{height:3px;background:linear-gradient(to right,${color},#e8eef7);margin:14px 0;border-radius:2px}
+  .divider2{height:1px;background:#e0e0e0;margin:14px 0}
+  .doc-title{text-align:center;margin:20px 0 8px}
+  .doc-title h2{font-size:22px;font-weight:800;color:#1a2236;text-transform:uppercase;letter-spacing:1px}
+  .doc-title h3{font-size:15px;font-weight:700;color:#1a2236;margin-top:4px;text-transform:uppercase}
+  .student-info{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:20px 0;background:#f8f9fc;border-radius:8px;padding:16px;border:1px solid #e2e8f2}
+  .info-row{display:flex;flex-direction:column;gap:2px}
+  .info-label{font-size:10px;color:#8a97aa;text-transform:uppercase;letter-spacing:.06em;font-weight:700}
+  .info-value{font-size:13px;font-weight:600;color:#1a2236}
+  table{width:100%;border-collapse:collapse;margin:16px 0;border:1.5px solid #1a2236;border-radius:6px;overflow:hidden}
+  thead tr{background:${color};color:#fff}
+  thead th{padding:11px 16px;text-align:left;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+  thead th:last-child{text-align:right}
+  tbody tr{border-bottom:1px solid #e2e8f2}
+  tbody tr:last-child{border-bottom:none}
+  tbody td{padding:10px 16px;font-size:13px;color:#1a2236}
+  tbody td:last-child{text-align:right;font-weight:600}
+  tbody tr:nth-child(even){background:#f8f9fc}
+  .total-row{background:${color}!important}
+  .total-row td{color:#fff!important;font-weight:800!important;font-size:14px!important;padding:13px 16px!important}
+  .summary{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin:20px 0}
+  .summary-box{border:1.5px solid #e2e8f2;border-radius:8px;padding:12px 16px;text-align:center}
+  .summary-box.balance{border-color:${bal>0?'#dc2626':'#16a34a'};background:${bal>0?'#fee2e2':'#dcfce7'}}
+  .summary-label{font-size:10px;color:#8a97aa;text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:4px}
+  .summary-value{font-size:16px;font-weight:800;color:#1a2236}
+  .summary-box.balance .summary-value{color:${bal>0?'#dc2626':'#16a34a'}}
+  .stamp-area{display:flex;justify-content:flex-end;margin-top:32px}
+  .stamp-box{border:1.5px dashed #aaa;width:140px;height:64px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-size:11px;color:#aaa;flex-direction:column;gap:4px}
+  footer{margin-top:40px;border-top:2px solid ${color};padding-top:10px;display:flex;justify-content:space-between;align-items:center}
+  .footer-left{font-size:11px;color:#555}
+  .footer-right{font-size:11px;color:#555;text-align:right}
+  .footer-brand{font-size:12px;font-weight:700;color:${color}}
+  @media print{
+    body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .watermark{position:fixed}
+  }
+</style>
+</head>
+<body>
+<div class="watermark"><img src="${logoUrl}" alt=""></div>
+<div class="page">
+  <div class="header">
+    <div class="header-left">
+      <img src="${logoUrl}" alt="Logo">
+      <div>
+        <div class="school-name">Al Azhaar Academy</div>
+        <div class="school-sub">
+          P.O Box 70-1000<br>
+          Tel: 02018625658<br>
+          EduFinance School Management System
+        </div>
+      </div>
+    </div>
+    <div class="header-right">
+      <strong>INVOICE NO.</strong><br>
+      INV-${feeId.substring(0,8).toUpperCase()}<br><br>
+      <strong>DATE</strong><br>
+      ${new Date().toLocaleDateString('en-KE',{day:'2-digit',month:'long',year:'numeric'})}
+    </div>
+  </div>
+  <div class="divider"></div>
+  <div class="doc-title">
+    <h2>Fee Invoice</h2>
+    <h3>${term} &mdash; ${grade}${stream?' · '+stream:''}</h3>
+  </div>
+  <div class="student-info">
+    <div class="info-row"><span class="info-label">Student Name</span><span class="info-value">${student?.full_name||'—'}</span></div>
+    <div class="info-row"><span class="info-label">Admission No.</span><span class="info-value">${student?.admission_no||'—'}</span></div>
+    <div class="info-row"><span class="info-label">Grade & Stream</span><span class="info-value">${grade}${stream?' — '+stream:''}</span></div>
+    <div class="info-row"><span class="info-label">Parent/Guardian</span><span class="info-value">${student?.parent_name||'—'}</span></div>
+    <div class="info-row"><span class="info-label">Phone</span><span class="info-value">${student?.parent_phone||'—'}</span></div>
+    <div class="info-row"><span class="info-label">Term</span><span class="info-value">${term}</span></div>
+  </div>
+  <table>
+    <thead><tr><th>Description</th><th style="text-align:right">Amount (KSh)</th></tr></thead>
+    <tbody>
+      ${allCharges.length?allCharges.map(c=>`<tr><td>${c.name||c.description||'Fee'}</td><td>${fmt(c.amount)}</td></tr>`).join(''):`<tr><td>School Fees</td><td>${fmt(r.expected)}</td></tr>`}
+      <tr class="total-row"><td>Total Payable Fee</td><td>${fmt(r.expected)}</td></tr>
+    </tbody>
+  </table>
+  <div class="summary">
+    <div class="summary-box"><div class="summary-label">Total Expected</div><div class="summary-value">KSh ${fmt(r.expected)}</div></div>
+    <div class="summary-box"><div class="summary-label">Amount Paid</div><div class="summary-value">KSh ${fmt(r.paid)}</div></div>
+    <div class="summary-box balance"><div class="summary-label">Balance Due</div><div class="summary-value">KSh ${fmt(bal)}</div></div>
+  </div>
+  <div class="stamp-area">
+    <div class="stamp-box">
+      <span>Authorised Signature</span>
+      <span style="border-top:1px solid #ddd;width:100px;margin-top:8px"></span>
+    </div>
+  </div>
+  <footer>
+    <div class="footer-left"><span class="footer-brand">Al Azhaar Academy</span><br>P.O Box 70-1000 · Tel: 02018625658</div>
+    <div class="footer-right">Generated on ${new Date().toLocaleDateString('en-KE',{day:'2-digit',month:'long',year:'numeric'})}<br><span style="color:#aaa;font-size:10px">This is an official fee invoice</span></div>
+  </footer>
+</div>
+<script>window.onload=()=>window.print()<\/script>
+</body>
+</html>`;
+    const w=window.open('','_blank');
+    w.document.write(html);
+    w.document.close();
+  }catch(e){toast('Failed to generate invoice: '+e.message,'error');}
+}
+  
 function ftToggleAll(m){document.querySelectorAll('.ft-cb').forEach(cb=>cb.checked=m.checked);updateSMSCount();}
 function selectFTGroup(g){document.querySelectorAll('.ft-cb').forEach(cb=>{const s=cb.dataset.status;cb.checked=g==='due'?s==='due':g==='deficit'?(s==='due'||s==='partial'):false;});updateSMSCount();}
 function updateSMSCount(){const n=document.querySelectorAll('.ft-cb:checked').length;document.getElementById('ft-sms-cnt').textContent=n;document.getElementById('ft-sms-btn').style.display=n>0?'inline-flex':'none';}
