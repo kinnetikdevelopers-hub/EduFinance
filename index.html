@@ -397,6 +397,24 @@
       </div>
     </div>
 
+    <!-- == TEMPLATES ================================== -->
+<div class="page" id="page-templates">
+  <div class="ph">
+    <div><h1>Templates</h1><p>Customize how your documents look when printed</p></div>
+  </div>
+  <div class="sub-tabs">
+    <div class="sub-tab active" onclick="switchTemplateTab('global',this)">Global</div>
+    <div class="sub-tab" onclick="switchTemplateTab('receipt',this)">Receipt</div>
+    <div class="sub-tab" onclick="switchTemplateTab('invoice',this)">Invoice</div>
+    <div class="sub-tab" onclick="switchTemplateTab('fee-statement',this)">Fee Statement</div>
+    <div class="sub-tab" onclick="switchTemplateTab('expense',this)">Expense Report</div>
+    <div class="sub-tab" onclick="switchTemplateTab('general',this)">General Report</div>
+  </div>
+  <div id="tpl-content">
+    <p class="c3" style="padding:40px;text-align:center">Loading templates...</p>
+  </div>
+</div>
+
     <!-- ══ SETTINGS ═══════════════════════════════════ -->
     <div class="page" id="page-settings">
       <div class="ph"><div><h1>Settings</h1><p>School profile, users and preferences</p></div></div>
