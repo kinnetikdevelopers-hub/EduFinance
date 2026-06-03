@@ -920,7 +920,8 @@ async function editGrade(id){
   document.getElementById('eg-id').value=id;
   document.getElementById('eg-name').value=g.name;
   document.getElementById('eg-order').value=g.sort_order;
-  document.getElementById('eg-streams').value='';
+  const streams=await api(`/rest/v1/ef_streams?grade_id=eq.${id}&order=name.asc`);
+  document.getElementById('eg-streams').value=(streams||[]).map(s=>s.name).join(', ');
   openM('m-edit-grade');
 }
 async function updateGrade(){
