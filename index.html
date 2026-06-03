@@ -1546,16 +1546,16 @@ async function showReceipt(feeId){
     </div>`;
   openM('m-receipt');
 }
-1549: function printReceipt(){
-1550:   const c=document.getElementById('printable-receipt').outerHTML;
-1551:   const w=window.open('','_blank');
-1552:   w.document.write(`<!DOCTYPE html>...(long string)...<\/body>
-1553: <\/html>`);
-1554:   w.document.close();
-1555: }
-1556: </script>
-1557: 
-1558:   <!-- Application logic -->
-1559:   <script src="src/app.js"></script>
-1560: </body>
-1561: </html>
+function printReceipt(){
+   const c=document.getElementById('printable-receipt').outerHTML;
+   const w=window.open('','_blank');
+   w.document.write(`<!DOCTYPE html>...(long string)...<\/body>
+ <\/html>`);
+   w.document.close();
+ }
+ </script>
+ 
+   <!-- Application logic -->
+   <script src="src/app.js"></script>
+ </body>
+ </html>
