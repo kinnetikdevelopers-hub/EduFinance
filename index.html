@@ -931,6 +931,7 @@ async function updateGrade(){
   const streamsRaw=document.getElementById('eg-streams').value.trim();
   try{
     await api(`/rest/v1/ef_grades?id=eq.${id}`,'PATCH',{name,sort_order:order});
+    await api(`/rest/v1/ef_streams?grade_id=eq.${id}`,'DELETE');
     if(streamsRaw){for(const s of streamsRaw.split(',').map(x=>x.trim()).filter(Boolean))await api('/rest/v1/ef_streams','POST',{grade_id:id,name:s});}
     closeM('m-edit-grade');toast('Grade updated','success');
     await loadGrades();renderGradesTable();
