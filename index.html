@@ -937,7 +937,13 @@ async function updateGrade(){
 }
 async function deleteGrade(id){
   confirm2('Delete grade','This removes the grade and all its streams.',async()=>{
-    try{await api(`/rest/v1/ef_grades?id=eq.${id}`,'DELETE');toast('Grade deleted','success');await loadGrades();renderGradesTable();}catch(e){toast('Cannot delete — students enrolled','error');}
+    try{
+      await api(`/rest/v1/ef_students?grade_id=eq.${id}`,'PATCH',{grade_id:null,stream_id:null});
+      await api(`/rest/v1/ef_streams?grade_id=eq.${id}`,'DELETE');
+      await api(`/rest/v1/ef_grades?id=eq.${id}`,'DELETE');
+      toast('Grade deleted','success');
+      await loadGrades();renderGradesTable();
+    }catch(e){toast('Failed: '+e.message,'error');}
   });
 }
 async function editStream(id, currentName, gradeId){
