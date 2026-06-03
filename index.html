@@ -691,7 +691,7 @@ let _logoDataUrl = null;
 
 // ══ API ════════════════════════════════════════════
 async function api(path, method='GET', body=null) {
-  const h = {'Content-Type':'application/json','apikey':KEY,'Prefer':'return=representation'};
+  const h = {'Content-Type':'application/json','apikey':KEY,'Prefer': method==='DELETE'?'return=minimal':'return=representation'};
   if (AUTH) h['Authorization'] = 'Bearer '+AUTH;
   const r = await fetch(SB+path, {method, headers:h, body:body?JSON.stringify(body):undefined});
   if (r.status===204) return [];
