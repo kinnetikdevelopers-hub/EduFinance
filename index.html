@@ -951,6 +951,7 @@ async function updateGrade(){
           }
         }
       }
+    }
     closeM('m-edit-grade');toast('Grade updated','success');
     await loadGrades();renderGradesTable();
   }catch(e){toast('Failed: '+e.message,'error');}
