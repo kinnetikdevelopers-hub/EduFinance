@@ -729,25 +729,41 @@ async function doLogin() {
   const email = document.getElementById('li-email').value.trim();
   const pass = document.getElementById('li-pass').value;
   const err = document.getElementById('login-err');
-  err.style.display='none';
-  if (!email||!pass) {err.textContent='Enter email and password.';err.style.display='block';return;}
+
+  err.style.display = 'none';
+
+  if (!email || !pass) {
+    err.textContent = 'Enter email and password.';
+    err.style.display = 'block';
+    return;
+  }
+
   try {
-    const d = await api('/auth/v1/token?grant_type=password','POST',{email,password:pass});
-    if (!d.access_token) throw new Error();
+    const d = await api('/auth/v1/token?grant_type=password', 'POST', {
+      email,
+      password: pass
+    });
+
+    if (!d.access_token) throw new Error('No access token returned.');
+
     AUTH = d.access_token;
     USER_EMAIL = email;
+
     sessionStorage.setItem('ef_t', AUTH);
     sessionStorage.setItem('ef_e', email);
-    document.getElementById('login-screen').style.display='none';
-    // Set profile initials
-    const initials = email.split('@')[0].slice(0,2).toUpperCase();
+
+    document.getElementById('login-screen').style.display = 'none';
+
+    const initials = email.split('@')[0].slice(0, 2).toUpperCase();
     document.getElementById('profile-btn').textContent = initials;
+
     await bootApp();
- catch (e) {
-  console.error(e);
-  err.textContent = e.message;
-  err.style.display = 'block';
-}
+
+  } catch (e) {
+    console.error('LOGIN ERROR:', e);
+    err.textContent = e.message || 'Login failed.';
+    err.style.display = 'block';
+  }
 }
 function confirmLogout(){openM('m-logout');}
 async function doLogout() {
