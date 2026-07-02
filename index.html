@@ -743,10 +743,11 @@ async function doLogin() {
     const initials = email.split('@')[0].slice(0,2).toUpperCase();
     document.getElementById('profile-btn').textContent = initials;
     await bootApp();
-  } catch(e) {
-    err.textContent='Invalid email or password.';
-    err.style.display='block';
-  }
+ catch (e) {
+  console.error(e);
+  err.textContent = e.message;
+  err.style.display = 'block';
+}
 }
 function confirmLogout(){openM('m-logout');}
 async function doLogout() {
