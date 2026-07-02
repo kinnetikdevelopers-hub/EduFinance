@@ -724,6 +724,16 @@ async function api(path, method='GET', body=null) {
   return d;
 }
 
+// ══ DEV BYPASS ═════════════════════════════════════
+// TEMP: skip login while debugging the auth "Failed to fetch" issue.
+// To restore normal login flow, delete this block (or set SKIP_LOGIN = false).
+const SKIP_LOGIN = true;
+if (SKIP_LOGIN) {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('profile-btn').textContent = 'DEV';
+  bootApp();
+}
+
 // ══ AUTH ═══════════════════════════════════════════
 async function doLogin() {
   const email = document.getElementById('li-email').value.trim();
